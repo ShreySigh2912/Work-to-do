@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Check } from 'lucide-react';
+import { Plus, Check, Calendar, Clock } from 'lucide-react';
 
 const TodoApp = () => {
   const [tasks, setTasks] = useState(() => {
@@ -9,14 +9,13 @@ const TodoApp = () => {
   
   const [newTask, setNewTask] = useState({ 
     title: '', 
-    description: ''
+    description: '',
+    deadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16)
   });
 
-  // Add states for quotes
   const [showQuote, setShowQuote] = useState(false);
   const [currentQuote, setCurrentQuote] = useState('');
 
-  // Motivational quotes array
   const quotes = [
     "Success is not final, failure is not fatal: it is the courage to continue that counts.",
     "The only way to do great work is to love what you do.",
@@ -36,7 +35,7 @@ const TodoApp = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!newTask.title) return;
+    if (!newTask.title || !newTask.deadline) return;
 
     setTasks([
       ...tasks,
@@ -47,13 +46,16 @@ const TodoApp = () => {
         createdDate: new Date().toISOString()
       }
     ]);
-    setNewTask({ title: '', description: '' });
+    setNewTask({ 
+      title: '', 
+      description: '', 
+      deadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16)
+    });
   };
 
   const completeTask = (taskId) => {
     setTasks(tasks.map(task => {
       if (task.id === taskId) {
-        // Select random quote
         const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
         setCurrentQuote(randomQuote);
         setShowQuote(true);
@@ -65,6 +67,28 @@ const TodoApp = () => {
       }
       return task;
     }));
+  };
+
+  const getTimeRemaining = (deadline) => {
+    const now = new Date();
+    const timeLeft = new Date(deadline) - now;
+    
+    if (timeLeft < 0) {
+      return 'Overdue';
+    }
+
+    const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+    if (hours < 24) {
+      const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+      return `${hours}h ${minutes}m remaining`;
+    }
+    
+    const days = Math.floor(hours / 24);
+    return `${days} days remaining`;
+  };
+
+  const isOverdue = (deadline) => {
+    return new Date(deadline) < new Date() ? 'text-red-500' : 'text-gray-500';
   };
 
   return (
@@ -86,6 +110,15 @@ const TodoApp = () => {
             onChange={(e) => setNewTask({...newTask, description: e.target.value})}
             className="w-full p-2 border rounded"
           />
+          <div className="flex items-center gap-2">
+            <Clock size={20} className="text-gray-500" />
+            <input
+              type="datetime-local"
+              value={newTask.deadline}
+              onChange={(e) => setNewTask({...newTask, deadline: e.target.value})}
+              className="flex-1 p-2 border rounded"
+            />
+          </div>
           <button
             type="submit"
             className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 flex items-center justify-center gap-2"
@@ -96,32 +129,44 @@ const TodoApp = () => {
       </form>
 
       <div className="space-y-4">
-        {tasks.map(task => (
-          <div 
-            key={task.id} 
-            className={`p-4 rounded-lg shadow ${
-              task.completed ? 'bg-green-50' : 'bg-white'
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <h3 className={`text-xl ${task.completed ? 'line-through' : ''}`}>
-                {task.title}
-              </h3>
-              {!task.completed && (
-                <button
-                  onClick={() => completeTask(task.id)}
-                  className="bg-green-500 text-white p-2 rounded hover:bg-green-600"
-                >
-                  <Check size={20} />
-                </button>
-              )}
+        {tasks
+          .sort((a, b) => new Date(a.deadline) - new Date(b.deadline))
+          .map(task => (
+            <div 
+              key={task.id} 
+              className={`p-4 rounded-lg shadow ${
+                task.completed ? 'bg-green-50' : 'bg-white'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <h3 className={`text-xl ${task.completed ? 'line-through' : ''}`}>
+                  {task.title}
+                </h3>
+                {!task.completed && (
+                  <button
+                    onClick={() => completeTask(task.id)}
+                    className="bg-green-500 text-white p-2 rounded hover:bg-green-600"
+                  >
+                    <Check size={20} />
+                  </button>
+                )}
+              </div>
+              <p className="text-gray-600 mt-2">{task.description}</p>
+              <div className="flex items-center gap-2 mt-2 text-sm">
+                <Calendar size={16} />
+                <span className={isOverdue(task.deadline)}>
+                  Due: {new Date(task.deadline).toLocaleString()}
+                  {!task.completed && (
+                    <span className="ml-2">
+                      ({getTimeRemaining(task.deadline)})
+                    </span>
+                  )}
+                </span>
+              </div>
             </div>
-            <p className="text-gray-600 mt-2">{task.description}</p>
-          </div>
-        ))}
+          ))}
       </div>
 
-      {/* Motivational Quote Modal */}
       {showQuote && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
           <div className="bg-white p-6 rounded-lg max-w-md">
